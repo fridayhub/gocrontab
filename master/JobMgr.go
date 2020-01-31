@@ -11,9 +11,7 @@ import (
 )
 
 type JobMgr struct {
-	client * clientv3.Client
-	kv clientv3.KV
-	lease clientv3.Lease
+	common.EtcdClient
 }
 
 var (
@@ -45,9 +43,11 @@ func InitJobMgr() (err error)  {
 	lease = clientv3.NewLease(client)
 
 	G_jobMgr = &JobMgr{
-		client: client,
-		kv:     kv,
-		lease:  lease,
+		EtcdClient:common.EtcdClient{
+			Client: client,
+			Kv:     kv,
+			Lease:  lease,
+		},
 	}
 	return
 }
@@ -65,7 +65,7 @@ func (j *JobMgr)SaveJob(job *common.Job) (oldJob *common.Job, err error) {
 	}
 
 	//save to etcd
-	if putResp, err = j.kv.Put(context.TODO(), jobKey, string(jobValue), clientv3.WithPrevKV()); err != nil {
+	if putResp, err = j.Kv.Put(context.TODO(), jobKey, string(jobValue), clientv3.WithPrevKV()); err != nil {
 		return
 	}
 	if putResp.PrevKv != nil {
@@ -87,7 +87,7 @@ func (j *JobMgr) DeleteJob(name string) (oldJob *common.Job, err error)  {
 	)
 	jobKey = common.JOB_SAVE_DIR + name
 
-	if delResp, err = j.kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV());err != nil {
+	if delResp, err = j.Kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV());err != nil {
 		return
 	}
 
@@ -113,7 +113,7 @@ func (j *JobMgr) ListJobs() (jobList []*common.Job, err error) {
 	dirKey = common.JOB_SAVE_DIR
 
 	//获取目录下所有的任务信息
-	if getResp, err = j.kv.Get(context.TODO(), dirKey, clientv3.WithPrefix()); err != nil {
+	if getResp, err = j.Kv.Get(context.TODO(), dirKey, clientv3.WithPrefix()); err != nil {
 		return
 	}
 
@@ -143,7 +143,7 @@ func (j *JobMgr) KillJob(name string) (err error) {
 	killerKey = common.JOB_KILLER_DIR + name
 
 	// 让worker监听到一次put操作, 创建一个租约让其稍后自动过期即可
-	if leaseGrantResp, err = j.lease.Grant(context.TODO(), 1); err != nil {
+	if leaseGrantResp, err = j.Lease.Grant(context.TODO(), 1); err != nil {
 		return
 	}
 
@@ -151,9 +151,9 @@ func (j *JobMgr) KillJob(name string) (err error) {
 	leaseId = leaseGrantResp.ID
 
 	// 设置killer标记
-	if _, err = j.kv.Put(context.TODO(), killerKey, "", clientv3.WithLease(leaseId)); err != nil {
+	if _, err = j.Kv.Put(context.TODO(), killerKey, "", clientv3.WithLease(leaseId)); err != nil {
+		fmt.Println("put killerKey error:", err)
 		return
 	}
 	return
-
 }

@@ -3,10 +3,17 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/gorhill/cronexpr"
 	"strings"
 	"time"
 )
+
+type EtcdClient struct {
+	Client *clientv3.Client
+	Kv clientv3.KV
+	Lease clientv3.Lease
+}
 
 type Job struct {
 	Name string `json:"name"`
@@ -98,6 +105,50 @@ func UnpackJob(value []byte) (ret *Job, err error) {
 	ret = job
 	return
 }
+
+// 从etcd的key中提取任务名
+// /cron/jobs/job10抹掉/cron/jobs/
+func ExtractJobName(jobKey string) (string) {
+	return strings.TrimPrefix(jobKey, JOB_SAVE_DIR)
+}
+
+// 从 /cron/killer/job10提取job10
+func ExtractKillerName(killerKey string) (string) {
+	return strings.TrimPrefix(killerKey, JOB_KILLER_DIR)
+}
+
+// 构造任务执行计划
+func BuildJobSchedulePlan(job *Job) (jobSchedulePlan *JobSchedulePlan, err error) {
+	var (
+		expr *cronexpr.Expression
+	)
+
+	// 解析JOB的cron表达式
+	if expr, err = cronexpr.Parse(job.CronExpr); err != nil {
+		return
+	}
+
+	// 生成任务调度计划对象
+	jobSchedulePlan = &JobSchedulePlan{
+		Job: job,
+		Expr: expr,
+		NextTime: expr.Next(time.Now()),
+	}
+	return
+}
+
+// 构造执行状态信息
+func BuildJobExecuteInfo(jobSchedulePlan *JobSchedulePlan) (jobExecuteInfo *JobExecuteInfo){
+	jobExecuteInfo = &JobExecuteInfo{
+		Job: jobSchedulePlan.Job,
+		PlanTime: jobSchedulePlan.NextTime, // 计算调度时间
+		RealTime: time.Now(), // 真实调度时间
+	}
+	jobExecuteInfo.CancelCtx, jobExecuteInfo.CancelFunc = context.WithCancel(context.TODO())
+	return
+}
+
+
 
 func ExtractWorkerIP(regKey string) string  {
 	return strings.TrimPrefix(regKey, JOB_WORKER_DIR)

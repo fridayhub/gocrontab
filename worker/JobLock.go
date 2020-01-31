@@ -7,8 +7,7 @@ import (
 )
 
 type JobLock struct {
-	kv clientv3.KV
-	lease clientv3.Lease
+	common.EtcdClient
 	jobName string
 	cancelFunc context.CancelFunc
 	leaseId clientv3.LeaseID
@@ -17,8 +16,10 @@ type JobLock struct {
 
 func InitJobLock(jobName string, kv clientv3.KV, lease clientv3.Lease) *JobLock {
 	return  &JobLock{
-		kv:         kv,
-		lease:      lease,
+		EtcdClient:common.EtcdClient{
+			Kv:     kv,
+			Lease:  lease,
+		},
 		jobName:    jobName,
 	}
 }
@@ -36,7 +37,7 @@ func (j *JobLock)TryLock() (err error) {
 	)
 
 	//1 创建租约
-	if leaseGrantResp, err = j.lease.Grant(context.TODO(), 5); err != nil {
+	if leaseGrantResp, err = j.Lease.Grant(context.TODO(), 5); err != nil {
 		return
 	}
 	// context 用于取消自动续租
@@ -45,7 +46,7 @@ func (j *JobLock)TryLock() (err error) {
 	leaseId = leaseGrantResp.ID
 
 	//2 自动续租
-	if keepRespChan, err = j.lease.KeepAlive(cancelCtx, leaseId); err != nil {
+	if keepRespChan, err = j.Lease.KeepAlive(cancelCtx, leaseId); err != nil {
 		goto FAIL
 	}
 
@@ -66,7 +67,7 @@ func (j *JobLock)TryLock() (err error) {
 	}()
 
 	//4 创建事物txn
-	txn = j.kv.Txn(context.TODO())
+	txn = j.Kv.Txn(context.TODO())
 
 	//锁路径
 	lockKey = common.JOB_LOCK_DIR + j.jobName
@@ -91,7 +92,7 @@ func (j *JobLock)TryLock() (err error) {
 
 	FAIL:
 		cancelFunc()
-		j.lease.Revoke(context.TODO(), leaseId)
+		j.Lease.Revoke(context.TODO(), leaseId)
 	return
 }
 
@@ -99,6 +100,6 @@ func (j *JobLock)TryLock() (err error) {
 func (j *JobLock) Unlock() {
 	if j.isLocked {
 		j.cancelFunc()                            // 取消我们程序自动续租的协程
-		j.lease.Revoke(context.TODO(), j.leaseId) // 释放租约
+		j.Lease.Revoke(context.TODO(), j.leaseId) // 释放租约
 	}
 }

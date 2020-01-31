@@ -14,7 +14,7 @@ type ApiServer struct {
 }
 
 var (
-	G_apiServer *ApiServer
+	GApiServer *ApiServer
 )
 
 func handleJobSave(resp http.ResponseWriter, req *http.Request)  {
@@ -199,7 +199,7 @@ func InitApiServer() (err error) {
 		WriteTimeout: time.Duration(G_config.ApiWriteTimeout) * time.Millisecond,
 	}
 
-	G_apiServer = &ApiServer{httpServer:httpServer}
+	GApiServer = &ApiServer{httpServer: httpServer}
 
 	//start server
 	go httpServer.Serve(listener)

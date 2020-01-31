@@ -13,10 +13,11 @@ type Executor struct {
 }
 
 var (
-	G_executor *Executor
+	GExecutor *Executor
 )
 
 func (e *Executor) ExecuteJob(info *common.JobExecuteInfo)  {
+	fmt.Println("ExecuteJob start...")
 	var (
 		cmd *exec.Cmd
 		err error
@@ -31,7 +32,7 @@ func (e *Executor) ExecuteJob(info *common.JobExecuteInfo)  {
 	}
 
 	//初始化分布式锁
-	jobLock = G_jobMgr.CreateJobLock(info.Job.Name)
+	jobLock = GJobmgr.CreateJobLock(info.Job.Name)
 
 	//记录开始时间
 	result.StartTime = time.Now()
@@ -57,4 +58,10 @@ func (e *Executor) ExecuteJob(info *common.JobExecuteInfo)  {
 		result.Output = output
 		result.Err = err
 	}
+	GScheduler.PushJobResult(result)
+}
+
+// 初始化执行器
+func InitExecutor(){
+	GExecutor = &Executor{}
 }

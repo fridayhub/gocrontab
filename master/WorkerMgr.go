@@ -9,9 +9,7 @@ import (
 )
 
 type WorkerMgr struct {
-	client *clientv3.Client
-	kv clientv3.KV
-	lease clientv3.Lease
+common.EtcdClient
 }
 
 var (
@@ -26,7 +24,7 @@ func (w *WorkerMgr) ListWorkers() (workers []string, err error) {
 	)
 
 	workers = make([]string, 0)
-	if getResp, err = w.kv.Get(context.TODO(), common.JOB_WORKER_DIR, clientv3.WithPrefix()); err != nil {
+	if getResp, err = w.Kv.Get(context.TODO(), common.JOB_WORKER_DIR, clientv3.WithPrefix()); err != nil {
 		return
 	}
 
@@ -62,9 +60,11 @@ func InitWorkerMgr() (err error) {
 	lease = clientv3.NewLease(client)
 
 	G_workerMgr = &WorkerMgr{
-		client :client,
-		kv: kv,
-		lease: lease,
+		EtcdClient:common.EtcdClient{
+			Client: client,
+			Kv:     kv,
+			Lease:  lease,
+		},
 	}
 	return
 }

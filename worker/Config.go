@@ -12,12 +12,12 @@ type Config struct {
 	MongodbUri string `json:"mongodbUri"`
 	MongodbConnectTimeout int `json:"mongodbConnectTimeout"`
 	JobLogBatchSize int `json:"jobLogBatchSize"`
-	JobLogCommitTimeout int `json"jobLogCommitTimeout"`
+	JobLogCommitTimeout int `json:"jobLogCommitTimeout"`
 }
 
 var (
 	// 单例
-	G_config *Config
+	GConfig *Config
 )
 
 // 加载配置
@@ -38,7 +38,7 @@ func InitConfig(filename string) (err error) {
 	}
 
 	// 3, 赋值单例
-	G_config = &conf
+	GConfig = &conf
 
 	return
 }
